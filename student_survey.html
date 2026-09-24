@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>全校學生特殊需求與關懷調查系統</title>
+    <!-- 注意：Tailwind CDN 適合快速部署；若要長期正式使用，建議改為建置後的 CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Microsoft JhengHei', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .checkbox-card:has(input:checked) {
+            border-color: #0284c7;
+            background-color: #f0f9ff;
+        }
+        @media print {
+            body > *:not(#report-modal) { display: none !important; }
+            #report-modal { position: static !important; display: block !important; background: none !important; padding: 0 !important; }
+            #report-modal > div { max-height: none !important; box-shadow: none !important; overflow: visible !important; }
+            #printable-area { overflow: visible !important; }
+            .no-print { display: none !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- 載入中提示條 -->
+    <div id="loading-bar" class="hidden fixed top-0 left-0 right-0 h-1 bg-brand-500 z-[60] animate-pulse no-print"></div>
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between md:h-16 py-3 md:py-0 items-center gap-3">
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-xl shadow-md shrink-0">
+                        <i class="fa-solid fa-hand-holding-heart"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">全校學生特殊需求與關懷調查系統</h1>
+                        <p class="text-xs text-slate-500">學生自主填報 • 導師催繳與關懷 • 生輔組車輛與弱勢清冊彙整平台</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs sm:text-sm w-full md:w-auto justify-center">
+                    <button id="tab-student-btn" onclick="switchRole('student')" class="px-3 sm:px-4 py-1.5 rounded-md font-medium transition-all shadow-sm bg-white text-brand-600">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>學生填寫端
+                    </button>
+                    <button id="tab-teacher-btn" onclick="switchRole('teacher')" class="px-3 sm:px-4 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-chalkboard-user mr-1"></i>導師專區
+                    </button>
+                    <button id="tab-admin-btn" onclick="switchRole('admin')" class="px-3 sm:px-4 py-1.5 rounded-md font-medium text-slate-600 hover:text-slate-900 transition-all">
+                        <i class="fa-solid fa-shield-halved mr-1"></i>組長/主任後台
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- 展示模式提示 -->
+        <div id="demo-banner" class="hidden mb-6 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl p-4 text-xs sm:text-sm no-print">
+            <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+            <strong>展示模式：</strong>尚未設定後端（<code class="bg-amber-100 px-1 rounded">CONFIG.API_URL</code> 為空）。資料只會存在這台電腦的瀏覽器，其他人看不到，且登入帳密僅為示範用，<strong>請勿在此輸入真實學生資料</strong>。
+            示範帳密：導師信箱 <code class="bg-amber-100 px-1 rounded" id="demo-teacher-email"></code> ／密碼 <code class="bg-amber-100 px-1 rounded" id="demo-teacher-pw"></code>、主任密碼 <code class="bg-amber-100 px-1 rounded" id="demo-admin-pw"></code>。
+        </div>
+
+        <!-- SECTION 1: STUDENT SURVEY FORM -->
+        <section id="view-student" class="max-w-3xl mx-auto space-y-6">
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-gradient-to-r from-brand-600 to-indigo-600 p-6 sm:p-8 text-white">
+                    <span id="semester-badge" class="bg-white/20 text-xs px-3 py-1 rounded-full font-semibold tracking-wider uppercase mb-2 inline-block"></span>
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-2">學生生活狀況、車輛與需求調查表</h2>
+                    <p class="text-brand-100 text-xs sm:text-sm leading-relaxed">
+                        同學你好：本表單包含通學工具登記、車牌審查、急難救助需求與校外賃居調查。資料將由導師與生輔組依權限管理，請安心填答。
+                    </p>
+                </div>
+
+                <form id="survey-form" onsubmit="handleFormSubmit(event)" class="p-6 sm:p-8 space-y-8">
+
+                    <!-- BLOCK 1 -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-200 pb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs sm:text-sm font-bold flex items-center justify-center">1</span>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900">基本識別資料</h3>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label for="student-class" class="block text-xs font-semibold text-slate-700 mb-1">班級 <span class="text-red-500">*</span></label>
+                                <select id="student-class" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-slate-800 text-sm transition">
+                                    <option value="">請選擇班級</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="student-seat" class="block text-xs font-semibold text-slate-700 mb-1">座號 <span class="text-red-500">*</span></label>
+                                <input type="number" id="student-seat" min="1" max="99" placeholder="例如: 5" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-slate-800 text-sm transition">
+                            </div>
+                            <div>
+                                <label for="student-name" class="block text-xs font-semibold text-slate-700 mb-1">姓名 <span class="text-red-500">*</span></label>
+                                <input type="text" id="student-name" maxlength="30" placeholder="請輸入全名" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-slate-800 text-sm transition">
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500">姓名需與學校名冊相符；若已填過，再次送出會更新先前的填答。</p>
+                    </div>
+
+                    <!-- BLOCK 2 -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-200 pb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs sm:text-sm font-bold flex items-center justify-center">2</span>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900">通學交通方式與車牌登記</h3>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-2">主要上下學交通工具 <span class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="commute" value="walk_bike" onchange="togglePlateInput()" required class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">步行 / 自行車</span>
+                                </label>
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="commute" value="scooter" onchange="togglePlateInput()" class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">機車 / 微型電動車</span>
+                                </label>
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="commute" value="transit" onchange="togglePlateInput()" class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">公車 / 火車</span>
+                                </label>
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="commute" value="pickup" onchange="togglePlateInput()" class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">家長接送</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="plate-number-box" class="hidden bg-amber-50/70 border border-amber-200 rounded-xl p-4 transition-all">
+                            <label for="license-plate" class="block text-xs font-semibold text-amber-900 mb-1">
+                                機車/電車車牌號碼 (生輔組申請車證與備查) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex items-center space-x-2">
+                                <i class="fa-solid fa-motorcycle text-amber-600 text-lg"></i>
+                                <input type="text" id="license-plate" maxlength="20" placeholder="例如: ABC-1234 或 電車註記" class="w-full rounded-lg border-amber-300 border p-2.5 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-sm">
+                            </div>
+                            <p class="text-[11px] text-amber-700 mt-1">※ 騎乘機車/電動車者請務必填寫，生輔組將據此發放車證與安排停車位置。</p>
+                        </div>
+                    </div>
+
+                    <!-- BLOCK 3 -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs sm:text-sm font-bold flex items-center justify-center">3</span>
+                                <h3 class="text-base sm:text-lg font-bold text-slate-900">經濟弱勢與各項補助意願調查</h3>
+                            </div>
+                            <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-md font-medium">可複選</span>
+                        </div>
+                        <p class="text-xs text-slate-500">若有符合以下項目，學校將優先提供補助、車資補貼或工讀機會：</p>
+                        <div id="economic-options-container" class="space-y-2.5"></div>
+                    </div>
+
+                    <!-- BLOCK 4 -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs sm:text-sm font-bold flex items-center justify-center">4</span>
+                                <h3 class="text-base sm:text-lg font-bold text-slate-900">特殊身分與生活身心關懷</h3>
+                            </div>
+                            <span class="text-xs bg-amber-100 text-amber-800 px-2.5 py-1 rounded-md font-medium">可複選</span>
+                        </div>
+                        <p class="text-xs text-slate-500">此區塊資訊僅供輔導室與導師身心關懷用途，協助營造安心學習環境：</p>
+                        <div id="care-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+                    </div>
+
+                    <!-- BLOCK 5 -->
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-200 pb-3">
+                            <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs sm:text-sm font-bold flex items-center justify-center">5</span>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900">校外賃居（租屋）調查</h3>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-2">是否於校外賃居（租屋）居住 <span class="text-red-500">*</span></label>
+                            <div class="grid grid-cols-2 gap-3 max-w-xs">
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="offCampusLiving" value="yes" onchange="toggleOffCampusInputs()" required class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">是</span>
+                                </label>
+                                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-center space-x-2 cursor-pointer hover:border-brand-300 transition">
+                                    <input type="radio" name="offCampusLiving" value="no" onchange="toggleOffCampusInputs()" class="text-brand-600 focus:ring-brand-500">
+                                    <span class="text-xs sm:text-sm font-medium text-slate-700">否</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="off-campus-box" class="hidden bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-4 transition-all">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="sm:col-span-2">
+                                    <label for="off-campus-address" class="block text-xs font-semibold text-amber-900 mb-1">賃居地址 <span class="text-red-500">*</span></label>
+                                    <input type="text" id="off-campus-address" maxlength="100" placeholder="請填寫實際居住地址" class="w-full rounded-lg border-amber-300 border p-2.5 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-sm">
+                                </div>
+                                <div>
+                                    <label for="off-campus-phone" class="block text-xs font-semibold text-amber-900 mb-1">學生電話 <span class="text-red-500">*</span></label>
+                                    <input type="tel" id="off-campus-phone" maxlength="20" placeholder="例如: 0912345678" class="w-full rounded-lg border-amber-300 border p-2.5 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-sm">
+                                </div>
+                                <div></div>
+                                <div>
+                                    <label for="landlord-name" class="block text-xs font-semibold text-amber-900 mb-1">房東姓名 <span class="text-red-500">*</span></label>
+                                    <input type="text" id="landlord-name" maxlength="30" placeholder="請填寫房東姓名" class="w-full rounded-lg border-amber-300 border p-2.5 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-sm">
+                                </div>
+                                <div>
+                                    <label for="landlord-phone" class="block text-xs font-semibold text-amber-900 mb-1">房東電話 <span class="text-red-500">*</span></label>
+                                    <input type="tel" id="landlord-phone" maxlength="20" placeholder="例如: 0912345678" class="w-full rounded-lg border-amber-300 border p-2.5 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-sm">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-amber-200">
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-900 mb-2">賃居處所是否為10床以上大型租賃場所 <span class="text-red-500">*</span></label>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                                            <input type="radio" name="largeFacility" value="yes" class="text-brand-600 focus:ring-brand-500">
+                                            <span class="text-xs sm:text-sm text-slate-700">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                                            <input type="radio" name="largeFacility" value="no" class="text-brand-600 focus:ring-brand-500">
+                                            <span class="text-xs sm:text-sm text-slate-700">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-amber-900 mb-2">與房東共租 <span class="text-red-500">*</span></label>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                                            <input type="radio" name="shareWithLandlord" value="yes" class="text-brand-600 focus:ring-brand-500">
+                                            <span class="text-xs sm:text-sm text-slate-700">是</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                                            <input type="radio" name="shareWithLandlord" value="no" class="text-brand-600 focus:ring-brand-500">
+                                            <span class="text-xs sm:text-sm text-slate-700">否</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BLOCK 6 -->
+                    <div class="space-y-3">
+                        <label for="additional-notes" class="block text-xs font-semibold text-slate-700">其他補充說明或需要學校/導師特別協助之處 <span class="text-slate-400 font-normal">(選填，最多 500 字)</span></label>
+                        <textarea id="additional-notes" rows="3" maxlength="500" placeholder="若有上述未盡事宜或突發特殊困難，請簡短寫在這裡..." class="w-full rounded-lg border-slate-200 border p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-slate-800 text-sm transition"></textarea>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-200">
+                        <button id="submit-btn" type="submit" class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:shadow-xl transition duration-200 flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span class="text-base">確認送出問卷</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- SECTION 2: HOMEROOM TEACHER DASHBOARD -->
+        <section id="view-teacher" class="hidden space-y-6">
+
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+                                <i class="fa-solid fa-user-lock mr-1"></i>導師獨立權限
+                            </span>
+                            <span id="teacher-role-badge" class="text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-md"></span>
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-900 mt-2">班級學生填寫狀況、催繳與獨立關懷名冊</h2>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="refreshData()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-lg transition">
+                            <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                        </button>
+                        <button onclick="logout()" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-3 py-2 rounded-lg transition border border-rose-200">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i>登出
+                        </button>
+                    </div>
+                </div>
+
+                <div id="t-no-roster-note" class="hidden text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3">
+                    本班尚未匯入名冊，因此無法計算「未填寫」人數。請通知生輔組匯入全校名冊。
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-700 gap-2 flex-wrap">
+                        <span>全班填寫進度：<span id="t-progress-text" class="text-brand-600">-</span></span>
+                        <button onclick="copyReminderText()" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-lg transition shadow-sm flex items-center space-x-1.5">
+                            <i class="fa-regular fa-copy"></i>
+                            <span>一鍵複製未填名單 (貼至LINE/群組)</span>
+                        </button>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                        <div id="t-progress-bar" class="bg-brand-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400">已填寫人數</p>
+                    <h3 id="t-stat-completed" class="text-2xl font-bold text-emerald-600 mt-1">0 人</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400">未填寫人數 (待催繳)</p>
+                    <h3 id="t-stat-unsubmitted" class="text-2xl font-bold text-rose-600 mt-1">0 人</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-amber-600">經濟扶助需求</p>
+                    <h3 id="t-stat-econ" class="text-2xl font-bold text-amber-600 mt-1">0 人</h3>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-semibold text-indigo-600">騎乘機車/電車通學</p>
+                    <h3 id="t-stat-scooter" class="text-2xl font-bold text-indigo-600 mt-1">0 人</h3>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50">
+                    <div class="flex items-center space-x-1 bg-slate-200/70 p-1 rounded-xl text-xs">
+                        <button id="t-filter-all" onclick="setTeacherFilter('all')" class="px-3 py-1.5 rounded-lg font-bold bg-white text-slate-800 shadow-sm">
+                            全班名冊 (<span id="t-count-all">0</span>)
+                        </button>
+                        <button id="t-filter-submitted" onclick="setTeacherFilter('submitted')" class="px-3 py-1.5 rounded-lg font-bold text-slate-600 hover:text-slate-900">
+                            <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>已填寫 (<span id="t-count-sub">0</span>)
+                        </button>
+                        <button id="t-filter-unsubmitted" onclick="setTeacherFilter('unsubmitted')" class="px-3 py-1.5 rounded-lg font-bold text-slate-600 hover:text-slate-900">
+                            <i class="fa-solid fa-circle-xmark text-rose-500 mr-1"></i>尚未填寫 (<span id="t-count-unsub">0</span>)
+                        </button>
+                    </div>
+
+                    <button onclick="exportClassCSV()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-3 py-1.5 rounded-lg transition">
+                        <i class="fa-solid fa-file-csv mr-1"></i>匯出本班 CSV
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm">
+                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">座號</th>
+                                <th class="py-3 px-4">姓名</th>
+                                <th class="py-3 px-4">填報狀態</th>
+                                <th class="py-3 px-4">通學方式 (車牌)</th>
+                                <th class="py-3 px-4">校外賃居</th>
+                                <th class="py-3 px-4">經濟/補助意願</th>
+                                <th class="py-3 px-4">生活關懷指標</th>
+                                <th class="py-3 px-4">補充說明</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-roster-tbody" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: ADMIN DASHBOARD -->
+        <section id="view-admin" class="hidden space-y-6">
+
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border border-indigo-800">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg border border-amber-500/30">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-amber-400 tracking-wider uppercase flex items-center space-x-1.5">
+                            <span>行政最高權限已開啟</span>
+                            <span class="bg-amber-400/20 text-amber-300 text-[10px] px-2 py-0.5 rounded border border-amber-400/30">生輔組長 / 學務主任 專用</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-0.5">具備全校 36 班資料交叉比對、全校名冊 CSV 匯入、與官方報表核發全權</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 shrink-0">
+                    <button onclick="refreshData()" class="text-xs bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-3 py-2 rounded-lg transition">
+                        <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                    </button>
+                    <button onclick="logout()" class="text-xs bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/40 text-rose-200 font-semibold px-3 py-2 rounded-lg transition">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i>登出
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs font-semibold text-slate-400">全校總填報數</div>
+                    <div id="adm-stat-total" class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs font-semibold text-slate-400">騎車通學 (有登記車牌)</div>
+                    <div id="adm-stat-bikes" class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-1">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs font-semibold text-slate-400">校外賃居人數</div>
+                    <div id="adm-stat-offcampus" class="text-2xl sm:text-3xl font-extrabold text-sky-600 mt-1">0</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="text-xs font-semibold text-slate-400">已載入名冊總人數</div>
+                    <div id="adm-stat-roster-count" class="text-2xl sm:text-3xl font-extrabold text-brand-600 mt-1">0</div>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h3 class="text-lg font-bold flex items-center">
+                            <i class="fa-solid fa-file-invoice text-amber-400 mr-2"></i>生輔組業務專用一鍵報表與名冊管理
+                        </h3>
+                        <p class="text-xs text-slate-300 mt-1">包含快速匯出業務報表、全校學生名冊批次匯入（CSV格式）。</p>
+                    </div>
+                    <button onclick="openImportRosterModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center space-x-2 shrink-0">
+                        <i class="fa-solid fa-file-import"></i>
+                        <span>批次匯入全校名冊 CSV</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+                    <button onclick="generateReport('scooter')" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-3 text-left transition flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-indigo-500/30 flex items-center justify-center text-indigo-300 text-lg"><i class="fa-solid fa-motorcycle"></i></div>
+                        <div>
+                            <div class="text-xs font-bold">騎車車牌名冊</div>
+                            <div class="text-[11px] text-slate-300">各年級車牌/人數清冊</div>
+                        </div>
+                    </button>
+                    <button onclick="generateReport('offcampus')" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-3 text-left transition flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-sky-500/30 flex items-center justify-center text-sky-300 text-lg"><i class="fa-solid fa-house-chimney-user"></i></div>
+                        <div>
+                            <div class="text-xs font-bold">校外賃居學生清冊</div>
+                            <div class="text-[11px] text-slate-300">賃居地址與房東資訊彙整</div>
+                        </div>
+                    </button>
+                    <button onclick="generateReport('unsubmitted')" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-3 text-left transition flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-rose-500/30 flex items-center justify-center text-rose-300 text-lg"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <div>
+                            <div class="text-xs font-bold">各班未填寫催繳名單</div>
+                            <div class="text-[11px] text-slate-300">給各班導師追蹤催填</div>
+                        </div>
+                    </button>
+                    <button onclick="generateReport('economic')" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-3 text-left transition flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-emerald-500/30 flex items-center justify-center text-emerald-300 text-lg"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                        <div>
+                            <div class="text-xs font-bold">經濟弱勢學生名冊</div>
+                            <div class="text-[11px] text-slate-300">急難救助/工讀/獎助學金彙整</div>
+                        </div>
+                    </button>
+                    <button onclick="generateReport('care')" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-3 text-left transition flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-amber-500/30 flex items-center justify-center text-amber-300 text-lg"><i class="fa-solid fa-heart-circle-exclamation"></i></div>
+                        <div>
+                            <div class="text-xs font-bold">特殊身分關懷名冊</div>
+                            <div class="text-[11px] text-slate-300">高關懷重點關照彙整</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center">
+                    <i class="fa-solid fa-chart-pie text-brand-600 mr-2"></i>全校各班填寫進度總覽表
+                </h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="admin-class-summary-grid"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center">
+                    <i class="fa-solid fa-list-check text-amber-600 mr-2"></i>經濟弱勢與高關懷分類統計（依年級）
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-xs font-bold text-emerald-700 mb-2 flex items-center">
+                            <i class="fa-solid fa-hand-holding-dollar mr-1.5"></i>經濟弱勢類別統計
+                        </h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                            <table class="w-full text-xs">
+                                <thead class="bg-slate-50 text-slate-500">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left font-semibold">類別</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高一</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高二</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高三</th>
+                                        <th class="py-2 px-3 text-center font-semibold">合計</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="econ-breakdown-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-rose-700 mb-2 flex items-center">
+                            <i class="fa-solid fa-heart-circle-exclamation mr-1.5"></i>高關懷類別統計
+                        </h4>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                            <table class="w-full text-xs">
+                                <thead class="bg-slate-50 text-slate-500">
+                                    <tr>
+                                        <th class="py-2 px-3 text-left font-semibold">類別</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高一</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高二</th>
+                                        <th class="py-2 px-3 text-center font-semibold">高三</th>
+                                        <th class="py-2 px-3 text-center font-semibold">合計</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="care-breakdown-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 space-y-3 bg-slate-50">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <h3 class="font-bold text-slate-800 text-base">全校資料總表與條件篩選</h3>
+                        <button onclick="exportAllCSV()" class="text-xs bg-brand-600 hover:bg-brand-700 text-white font-semibold px-3 py-2 rounded-lg transition">
+                            <i class="fa-solid fa-download mr-1"></i>下載完整數據 CSV
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                        <select id="filter-grade" onchange="applyAdminFilters()" class="w-full text-xs rounded-lg border-slate-300 border p-2 bg-white outline-none">
+                            <option value="">全部年級</option>
+                            <option value="1">高一 (101-112)</option>
+                            <option value="2">高二 (201-212)</option>
+                            <option value="3">高三 (301-312)</option>
+                        </select>
+                        <select id="filter-commute" onchange="applyAdminFilters()" class="w-full text-xs rounded-lg border-slate-300 border p-2 bg-white outline-none">
+                            <option value="">全部通學方式</option>
+                            <option value="scooter">機車 / 微型電車</option>
+                            <option value="transit">公車 / 火車</option>
+                            <option value="walk_bike">步行 / 自行車</option>
+                            <option value="pickup">家長接送</option>
+                        </select>
+                        <select id="filter-category" onchange="applyAdminFilters()" class="w-full text-xs rounded-lg border-slate-300 border p-2 bg-white outline-none">
+                            <option value="">全部需求類別</option>
+                            <option value="emergency">欲申請急難救助</option>
+                            <option value="illness">家屬罹患重病</option>
+                            <option value="workstudy">欲申請校內工讀</option>
+                            <option value="__care__">具特殊/高關懷身分</option>
+                            <option value="__offcampus__">校外賃居學生</option>
+                        </select>
+                        <input type="text" id="filter-search" oninput="applyAdminFilters()" placeholder="搜尋姓名/座號/車牌..." class="w-full text-xs rounded-lg border-slate-300 border p-2 bg-white outline-none">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm">
+                        <thead class="bg-slate-100 text-slate-600 border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-4">班級</th>
+                                <th class="py-3 px-4">座號</th>
+                                <th class="py-3 px-4">姓名</th>
+                                <th class="py-3 px-4">交通工具/車牌</th>
+                                <th class="py-3 px-4">校外賃居</th>
+                                <th class="py-3 px-4">經濟扶助勾選</th>
+                                <th class="py-3 px-4">關懷身分</th>
+                                <th class="py-3 px-4">備註說明</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table-tbody" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: LOGIN -->
+    <div id="login-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
+        <form onsubmit="submitLogin(event)" class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                <h3 id="login-title" class="font-bold text-lg text-slate-900 flex items-center">
+                    <i class="fa-solid fa-lock text-brand-600 mr-2"></i>登入
+                </h3>
+                <button type="button" onclick="closeLogin()" class="text-slate-400 hover:text-slate-600" aria-label="關閉">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div id="login-email-box" class="hidden">
+                <label for="login-email" class="block text-xs font-semibold text-slate-700 mb-1">導師信箱</label>
+                <input type="email" id="login-email" autocomplete="username" placeholder="例如：teacher101@school.edu.tw" class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+
+            <div>
+                <label for="login-password" class="block text-xs font-semibold text-slate-700 mb-1">密碼</label>
+                <input type="password" id="login-password" autocomplete="current-password" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+
+            <p id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5"></p>
+
+            <button id="login-btn" type="submit" class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition">
+                登入
+            </button>
+
+            <p id="login-forgot-box" class="hidden text-center">
+                <button type="button" onclick="openResetModal()" class="text-xs text-brand-600 hover:text-brand-800 font-semibold underline">
+                    忘記密碼／第一次登入請先設定密碼
+                </button>
+            </p>
+        </form>
+    </div>
+
+    <!-- MODAL: TEACHER PASSWORD RESET -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                <h3 class="font-bold text-lg text-slate-900 flex items-center">
+                    <i class="fa-solid fa-key text-brand-600 mr-2"></i>設定 / 重設密碼
+                </h3>
+                <button type="button" onclick="closeResetModal()" class="text-slate-400 hover:text-slate-600" aria-label="關閉">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- STEP 1: 輸入信箱要求驗證碼 -->
+            <form id="reset-step1-form" onsubmit="submitResetRequest(event)" class="space-y-4">
+                <p class="text-xs text-slate-500">請輸入您的導師信箱，系統會寄送 6 位數驗證碼供您設定密碼。</p>
+                <div>
+                    <label for="reset-email" class="block text-xs font-semibold text-slate-700 mb-1">導師信箱</label>
+                    <input type="email" id="reset-email" autocomplete="username" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <p id="reset-step1-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5"></p>
+                <button id="reset-step1-btn" type="submit" class="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition">
+                    寄送驗證碼
+                </button>
+            </form>
+
+            <!-- STEP 2: 輸入驗證碼與新密碼 -->
+            <form id="reset-step2-form" class="hidden space-y-4" onsubmit="submitResetConfirm(event)">
+                <p class="text-xs text-slate-500">驗證碼已寄至 <span id="reset-email-display" class="font-semibold text-slate-700"></span>，15 分鐘內有效。</p>
+                <div>
+                    <label for="reset-code" class="block text-xs font-semibold text-slate-700 mb-1">6 位數驗證碼</label>
+                    <input type="text" id="reset-code" inputmode="numeric" maxlength="6" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500 tracking-widest text-center font-mono">
+                </div>
+                <div>
+                    <label for="reset-new-password" class="block text-xs font-semibold text-slate-700 mb-1">新密碼（至少 8 碼）</label>
+                    <input type="password" id="reset-new-password" autocomplete="new-password" minlength="8" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label for="reset-new-password2" class="block text-xs font-semibold text-slate-700 mb-1">確認新密碼</label>
+                    <input type="password" id="reset-new-password2" autocomplete="new-password" minlength="8" required class="w-full rounded-lg border-slate-300 border p-2.5 bg-slate-50 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <p id="reset-step2-error" class="hidden text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5"></p>
+                <div class="flex items-center justify-between gap-2">
+                    <button type="button" onclick="backToResetStep1()" class="text-xs text-slate-500 hover:text-slate-700 font-semibold underline shrink-0">
+                        重新輸入信箱
+                    </button>
+                    <button id="reset-step2-btn" type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition">
+                        設定密碼並登入
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ROSTER IMPORT -->
+    <div id="import-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-200">
+            <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                <h3 class="font-bold text-lg text-slate-900 flex items-center">
+                    <i class="fa-solid fa-file-csv text-brand-600 mr-2"></i>匯入全校學生名冊 CSV
+                </h3>
+                <button onclick="closeImportRosterModal()" class="text-slate-400 hover:text-slate-600" aria-label="關閉">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs text-slate-600">
+                <p>請上傳標頭包含 <code class="bg-slate-100 text-brand-700 px-1.5 py-0.5 rounded font-mono border">班級,座號,姓名</code> 的 CSV 檔案（支援 UTF-8 與 Excel 常見的 Big5 編碼）。匯入會<strong>取代</strong>現有名冊。</p>
+
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1">
+                    <span class="font-bold text-slate-700">CSV 格式範例：</span>
+                    <pre class="bg-slate-900 text-amber-300 p-2.5 rounded-lg text-[11px] font-mono leading-relaxed">班級,座號,姓名
+101,01,王小明
+101,02,李美麗
+205,15,張大華</pre>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-2xl p-6 text-center transition bg-slate-50/50">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-brand-600 mb-2"></i>
+                    <p class="font-semibold text-slate-700 mb-1">選擇 CSV 名冊檔案</p>
+                    <input type="file" id="roster-file-input" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer">
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="clearRoster()" class="text-xs text-rose-600 hover:text-rose-800 font-semibold underline">
+                    清除全部名冊
+                </button>
+                <div class="space-x-2">
+                    <button onclick="closeImportRosterModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs">取消</button>
+                    <button id="import-btn" onclick="processRosterCSV()" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold text-xs shadow">
+                        開始匯入名冊
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REPORT -->
+    <div id="report-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 sm:p-6 bg-slate-900 text-white flex justify-between items-center no-print">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-print text-amber-400 text-xl"></i>
+                    <h3 id="modal-report-title" class="font-bold text-lg">報表預覽</h3>
+                </div>
+                <button onclick="closeReportModal()" class="text-slate-400 hover:text-white text-xl" aria-label="關閉">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="printable-area" class="p-6 sm:p-8 overflow-y-auto space-y-4 flex-1"></div>
+
+            <div class="p-4 bg-slate-100 border-t border-slate-200 flex justify-end space-x-3 no-print">
+                <button onclick="closeReportModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-200 font-semibold text-sm">關閉</button>
+                <button onclick="window.print()" class="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow">
+                    <i class="fa-solid fa-print mr-1.5"></i>列印 / 存為 PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed top-5 right-5 z-[70] flex flex-col space-y-3 pointer-events-none no-print"></div>
+
+    <script>
+    // =====================================================================
+    // 設定區
+    // =====================================================================
+    const CONFIG = {
+        // 貼上 Google Apps Script 部署後的 Web App 網址（以 /exec 結尾）。
+        // 留空 = 展示模式（資料只存在本機瀏覽器，僅供試用）。
+        //
+        // 若這個頁面本身就是從這個 Apps Script 網頁應用程式的網址打開的（例如網址結尾是
+        // /exec，或網域限定版的 .../a/macros/你的網域/s/.../exec），就自動使用目前的網址
+        // 來呼叫 API，避免「一般網址」跟「網域限定網址」格式不一致造成 401 未授權錯誤；
+        // 只有在用本機檔案或其他方式開啟這個頁面時，才會改用下面這行寫死的網址。
+        API_URL: /\/exec(?:[?#].*)?$/.test(location.href)
+            ? location.href.split(/[?#]/)[0]
+            : 'https://script.google.com/macros/s/AKfycbxuewR_EyAmvVRUWS5rQ_jVrFgt4g483yrvTic8ZlUn_J72YevckLIL0_UTPPLsTX2U/exec',
+        SEMESTER: '115 學年度第一學期',
+        // 以下帳密只在展示模式使用。正式模式的帳密存在後端，不在這個檔案裡。
+        DEMO_TEACHER_EMAIL: 'demo101@school.edu.tw',
+        DEMO_TEACHER_PASSWORD: 'teacher123',
+        DEMO_ADMIN_PASSWORD: 'admin123'
+    };
+    const IS_DEMO = !CONFIG.API_URL;
+
+    // =====================================================================
+    // 選項定義（用代碼儲存，之後改文字不會影響統計）
+    // =====================================================================
+    const COMMUTE_OPTIONS = [
+        { code: 'walk_bike', text: '步行/自行車' },
+        { code: 'scooter',   text: '機車/電動車' },
+        { code: 'transit',   text: '公車/火車' },
+        { code: 'pickup',    text: '家長接送' }
+    ];
+    const ECONOMIC_OPTIONS = [
+        { code: 'emergency',    text: '因家庭突發緊急變故，欲申請急難救助金', detail: { type: 'text', field: 'economicEmergencyNote', maxLength: 100, placeholder: '請簡述時間與事件，例如：114年3月，父親職災住院' } },
+        { code: 'illness',      text: '家屬罹患重病/重大傷病/器官移植中', detail: { type: 'text', field: 'economicIllnessNote', maxLength: 150, placeholder: '請簡述時間與病況，例如：114年，母親罹患乳癌第三期，正在化療' } },
+        { code: 'workstudy',    text: '家境清寒，欲申請校內工讀貼補家用' },
+        { code: 'scholarship',  text: '家境清寒且成績優良，欲申請獎助學金' },
+        { code: 'none',         text: '無上述狀況' }
+    ];
+    const CARE_OPTIONS = [
+        { code: 'grandparent',    text: '隔代教養', detail: { type: 'text', field: 'careGrandparentBy', maxLength: 50, placeholder: '請說明扶養人，例如：爺爺、奶奶、伯父...' } },
+        { code: 'single_parent',  text: '單親家庭', detail: { type: 'radio', field: 'careSingleParentBy', label: '同住者：', options: [{ value: 'dad', text: '爸爸' }, { value: 'mom', text: '媽媽' }] } },
+        { code: 'complex_family', text: '家庭關係複雜' },
+        { code: 'violence',       text: '家暴風險', detail: { type: 'text', field: 'careViolenceNote', maxLength: 200, placeholder: '請簡述狀況，以利輔導室掌握並及時協助' } },
+        { code: 'peer',           text: '人際關係問題' },
+        { code: 'night_out',      text: '經常深夜逗留特定場所' },
+        { code: 'mood',           text: '精神或行為異常 (如嗜睡、脾氣暴躁)' },
+        { code: 'attendance',     text: '經常缺、曠課' },
+        { code: 'smoking',        text: '有吸菸紀錄' },
+        { code: 'peer_concern',   text: '同儕反應有疑慮' },
+        { code: 'jiajiang',       text: '八家將成員' },
+        { code: 'dropout',        text: '中輟、休學復學生' },
+        { code: 'drug_family',    text: '家族有毒品前科' },
+        { code: 'other',          text: '其他問題', detail: { type: 'text', field: 'careOtherNote', maxLength: 200, placeholder: '請簡述其他狀況' } },
+        { code: 'none',           text: '無上述狀況' }
+    ];
+    const label = (list, code) => (list.find(o => o.code === code) || {}).text || code;
+    const commuteLabel = c => label(COMMUTE_OPTIONS, c);
+    const econLabel = c => label(ECONOMIC_OPTIONS, c);
+    const careLabel = c => label(CARE_OPTIONS, c);
+    const ynLabel = v => v === 'yes' ? '是' : (v === 'no' ? '否' : '未填');
+    function careLabelWithDetail(r, c) {
+        let t = careLabel(c);
+        if (c === 'grandparent' && r.careGrandparentBy) t += `（${r.careGrandparentBy}）`;
+        if (c === 'single_parent' && r.careSingleParentBy) t += `（${r.careSingleParentBy === 'dad' ? '爸爸' : '媽媽'}同住）`;
+        if (c === 'violence' && r.careViolenceNote) t += `：${r.careViolenceNote}`;
+        if (c === 'other' && r.careOtherNote) t += `：${r.careOtherNote}`;
+        return t;
+    }
+    function econLabelWithDetail(r, c) {
+        let t = econLabel(c);
+        if (c === 'emergency' && r.economicEmergencyNote) t += `：${r.economicEmergencyNote}`;
+        if (c === 'illness' && r.economicIllnessNote) t += `：${r.economicIllnessNote}`;
+        return t;
+    }
+
+    // =====================================================================
+    // 共用工具
+    // =====================================================================
+    function esc(str) {
+        return String(str ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+    function csvCell(v) {
+        let s = String(v ?? '');
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;   // 防止 Excel 公式注入
+        return `"${s.replace(/"/g, '""')}"`;
+    }
+    function normClass(v) { return String(v ?? '').trim(); }
+    function normSeat(v) {
+        const s = String(v ?? '').trim();
+        return /^\d+$/.test(s) ? s.padStart(2, '0') : s;
+    }
+    function squash(s) { return String(s ?? '').replace(/\s+/g, ''); }
+    const CLASS_RE = /^[1-3](0[1-9]|1[0-2])$/;
+    const bySeat = (a, b) => (parseInt(a.seat) || 0) - (parseInt(b.seat) || 0);
+
+    function allClassCodes() {
+        const list = [];
+        for (let g = 1; g <= 3; g++)
+            for (let c = 1; c <= 12; c++) list.push(`${g}${c < 10 ? '0' + c : c}`);
+        return list;
+    }
+
+    function showNotification(title, message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const bg = { success: 'bg-emerald-600', error: 'bg-rose-600', info: 'bg-slate-800', warning: 'bg-amber-500' };
+        const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
+
+        const el = document.createElement('div');
+        el.className = `pointer-events-auto flex items-start space-x-3 ${bg[type] || bg.info} text-white p-4 rounded-xl shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 max-w-md w-full border border-white/10`;
+
+        const icon = document.createElement('i');
+        icon.className = `fa-solid ${icons[type] || icons.info} text-xl mt-0.5`;
+        const body = document.createElement('div');
+        body.className = 'flex-1';
+        const h = document.createElement('h4');
+        h.className = 'font-bold text-sm leading-tight';
+        h.textContent = title;             // textContent：不會被當成 HTML
+        const p = document.createElement('p');
+        p.className = 'text-xs opacity-90 mt-1 whitespace-pre-line';
+        p.textContent = message;
+        body.append(h, p);
+        const close = document.createElement('button');
+        close.className = 'text-white/70 hover:text-white text-sm';
+        close.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        close.onclick = () => el.remove();
+
+        el.append(icon, body, close);
+        container.appendChild(el);
+        setTimeout(() => el.classList.remove('translate-y-2', 'opacity-0'), 10);
+        setTimeout(() => {
+            el.classList.add('opacity-0');
+            setTimeout(() => el.remove(), 300);
+        }, 5000);
+    }
+
+    // 標準 CSV 解析（支援引號、引號內逗號與換行）
+    function parseCSV(text) {
+        const rows = [];
+        let row = [], cell = '', inQ = false;
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (inQ) {
+                if (ch === '"') {
+                    if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false;
+                } else cell += ch;
+            } else if (ch === '"') inQ = true;
+            else if (ch === ',') { row.push(cell); cell = ''; }
+            else if (ch === '\n' || ch === '\r') {
+                if (ch === '\r' && text[i + 1] === '\n') i++;
+                row.push(cell); cell = ''; rows.push(row); row = [];
+            } else cell += ch;
+        }
+        if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+        return rows.filter(r => r.some(c => c.trim() !== ''));
+    }
+
+    // 先試 UTF-8，失敗再用 Big5（Excel 另存中文 CSV 常見編碼）
+    function decodeBuffer(buf) {
+        try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+        catch (e) { return new TextDecoder('big5').decode(buf); }
+    }
+
+    function downloadCSVBlob(csvText, filename) {
+        const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    // =====================================================================
+    // 資料層：展示模式（localStorage）與正式模式（Apps Script）共用同一組介面
+    // =====================================================================
+    let session = { role: null, token: null, cls: null };
+    let data = { roster: [], surveys: [] };
+
+    function loadSession() {
+        try { session = JSON.parse(sessionStorage.getItem('survey_session')) || session; } catch (e) {}
+    }
+    function saveSession() {
+        try { sessionStorage.setItem('survey_session', JSON.stringify(session)); } catch (e) {}
+    }
+    function clearSession() {
+        session = { role: null, token: null, cls: null };
+        try { sessionStorage.removeItem('survey_session'); } catch (e) {}
+    }
+
+    async function remote(action, payload = {}) {
+        let res;
+        try {
+            res = await fetch(CONFIG.API_URL, {
+                method: 'POST',
+                // 用 text/plain 可避免 CORS 預檢，Apps Script 才收得到
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action, token: session.token, ...payload })
+            });
+        } catch (e) {
+            throw new Error('無法連線到伺服器，請檢查網路後再試。');
+        }
+        if (!res.ok) throw new Error(`伺服器回應錯誤 (${res.status})`);
+        let json;
+        try { json = await res.json(); }
+        catch (e) { throw new Error('伺服器回應格式不正確，請確認 Apps Script 已正確部署。'); }
+        if (!json.ok) {
+            const err = new Error(json.error || '發生未知錯誤');
+            err.code = json.code;
+            throw err;
+        }
+        return json;
+    }
+
+    const Local = {
+        get(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } },
+        set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+    };
+    const DEMO_SEED = [
+        { id: 1, studentClass: '101', seat: '01', name: '張志豪', commute: 'scooter', plate: 'MMB-3821', economic: ['workstudy'], care: ['none'], economicEmergencyNote: '', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: '', careOtherNote: '', careViolenceNote: '', notes: '每日需騎電車由吉安通勤。', offCampusLiving: 'no', offCampusAddress: '', offCampusPhone: '', landlordName: '', landlordPhone: '', largeFacility: '', shareWithLandlord: '' },
+        { id: 2, studentClass: '101', seat: '02', name: '陳怡君', commute: 'transit', plate: '', economic: ['emergency'], care: ['single_parent'], economicEmergencyNote: '114年3月，父親職災住院，需要急難救助', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: 'mom', careOtherNote: '', careViolenceNote: '', notes: '父親上月職災住院，亟需急難救助金。', offCampusLiving: 'yes', offCampusAddress: '花蓮市中華路100號', offCampusPhone: '0912345678', landlordName: '林房東', landlordPhone: '0987654321', largeFacility: 'no', shareWithLandlord: 'no' },
+        { id: 3, studentClass: '101', seat: '05', name: '王大明', commute: 'walk_bike', plate: '', economic: ['none'], care: ['none'], economicEmergencyNote: '', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: '', careOtherNote: '', careViolenceNote: '', notes: '', offCampusLiving: 'no', offCampusAddress: '', offCampusPhone: '', landlordName: '', landlordPhone: '', largeFacility: '', shareWithLandlord: '' },
+        { id: 4, studentClass: '205', seat: '08', name: '李威倫', commute: 'scooter', plate: 'NKV-9012', economic: ['none'], care: ['none'], economicEmergencyNote: '', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: '', careOtherNote: '', careViolenceNote: '', notes: '', offCampusLiving: 'no', offCampusAddress: '', offCampusPhone: '', landlordName: '', landlordPhone: '', largeFacility: '', shareWithLandlord: '' },
+        { id: 5, studentClass: '302', seat: '15', name: '林雅婷', commute: 'walk_bike', plate: '', economic: ['scholarship'], care: ['none'], economicEmergencyNote: '', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: '', careOtherNote: '', careViolenceNote: '', notes: '成績優良，希望申請各項清寒獎學金。', offCampusLiving: 'no', offCampusAddress: '', offCampusPhone: '', landlordName: '', landlordPhone: '', largeFacility: '', shareWithLandlord: '' }
+    ];
+
+    const api = {
+        async submit(rec) {
+            if (!IS_DEMO) return remote('submit', { record: rec });
+            const roster = Local.get('demo_roster', []).filter(s => s.studentClass === rec.studentClass);
+            if (roster.length) {
+                const m = roster.find(s => s.seat === rec.seat);
+                if (!m) throw new Error('名冊中找不到此座號，請確認班級與座號。');
+                if (squash(m.name) !== squash(rec.name)) throw new Error('姓名與名冊不符，請確認後再送出。');
+            }
+            const surveys = Local.get('demo_surveys', DEMO_SEED);
+            const idx = surveys.findIndex(r => r.studentClass === rec.studentClass && r.seat === rec.seat);
+            if (idx >= 0) surveys[idx] = { ...rec, id: surveys[idx].id };
+            else surveys.push({ ...rec, id: Date.now() });
+            Local.set('demo_surveys', surveys);
+            return { ok: true, updated: idx >= 0 };
+        },
+        async login(role, identifier, password) {
+            if (!IS_DEMO) return remote('login', { role, identifier, password });
+            if (role === 'admin') {
+                if (password !== CONFIG.DEMO_ADMIN_PASSWORD) throw new Error('密碼錯誤');
+                return { ok: true, token: 'demo', cls: '' };
+            }
+            if (squash(identifier).toLowerCase() !== squash(CONFIG.DEMO_TEACHER_EMAIL).toLowerCase()) throw new Error('信箱或密碼錯誤');
+            if (password !== CONFIG.DEMO_TEACHER_PASSWORD) throw new Error('信箱或密碼錯誤');
+            return { ok: true, token: 'demo', cls: '101' };
+        },
+        async requestPasswordReset(email) {
+            if (!IS_DEMO) return remote('requestPasswordReset', { email });
+            throw new Error('展示模式不支援密碼重設，正式模式部署後即可使用（將以信箱寄送驗證碼）。');
+        },
+        async resetPassword(email, code, newPassword) {
+            if (!IS_DEMO) return remote('resetPassword', { email, code, newPassword });
+            throw new Error('展示模式不支援密碼重設，正式模式部署後即可使用（將以信箱寄送驗證碼）。');
+        },
+        async loadTeacher() {
+            if (!IS_DEMO) return remote('teacherData');
+            return {
+                roster: Local.get('demo_roster', []).filter(s => s.studentClass === session.cls),
+                surveys: Local.get('demo_surveys', DEMO_SEED).filter(r => r.studentClass === session.cls)
+            };
+        },
+        async loadAdmin() {
+            if (!IS_DEMO) return remote('adminData');
+            return { roster: Local.get('demo_roster', []), surveys: Local.get('demo_surveys', DEMO_SEED) };
+        },
+        async importRoster(rows) {
+            if (!IS_DEMO) return remote('importRoster', { rows });
+            Local.set('demo_roster', rows);
+            return { ok: true };
+        },
+        async clearRoster() {
+            if (!IS_DEMO) return remote('clearRoster');
+            Local.set('demo_roster', []);
+            return { ok: true };
+        }
+    };
+
+    // =====================================================================
+    // 資料整理（進度計算一律以名冊比對為準）
+    // =====================================================================
+    function buildClassView(cls) {
+        const roster = data.roster.filter(s => s.studentClass === cls).sort(bySeat);
+        const subs = data.surveys.filter(r => r.studentClass === cls);
+        const noRoster = roster.length === 0;
+        let rows;
+        if (noRoster) {
+            rows = subs.map(r => ({ ...r, isSubmitted: true })).sort(bySeat);
+        } else {
+            rows = roster.map(s => {
+                const sub = subs.find(r => r.seat === s.seat);
+                return sub
+                    ? { ...sub, isSubmitted: true }
+                    : { studentClass: cls, seat: s.seat, name: s.name, commute: '', plate: '', economic: [], care: [], economicEmergencyNote: '', economicIllnessNote: '', careGrandparentBy: '', careSingleParentBy: '', careOtherNote: '', careViolenceNote: '', notes: '', offCampusLiving: '', offCampusAddress: '', offCampusPhone: '', landlordName: '', landlordPhone: '', largeFacility: '', shareWithLandlord: '', isSubmitted: false };
+            });
+        }
+        return {
+            cls, rows, noRoster,
+            total: rows.length,
+            submitted: rows.filter(r => r.isSubmitted).length
+        };
+    }
+    const hasEconNeed = r => r.economic.some(c => c !== 'none');
+    const hasCareNeed = r => r.care.some(c => c !== 'none');
+
+    // =====================================================================
+    // 初始化與畫面切換
+    // =====================================================================
+    let teacherCurrentFilter = 'all';
+    let pendingRole = null;
+
+    window.onload = function () {
+        loadSession();
+        document.getElementById('semester-badge').textContent = CONFIG.SEMESTER;
+        if (IS_DEMO) {
+            document.getElementById('demo-banner').classList.remove('hidden');
+            document.getElementById('demo-teacher-email').textContent = CONFIG.DEMO_TEACHER_EMAIL;
+            document.getElementById('demo-teacher-pw').textContent = CONFIG.DEMO_TEACHER_PASSWORD;
+            document.getElementById('demo-admin-pw').textContent = CONFIG.DEMO_ADMIN_PASSWORD;
+        }
+        initClassOptions();
+        renderFormOptions();
+    };
+
+    function initClassOptions() {
+        const opts = allClassCodes().map(c => `<option value="${c}">${c} 班</option>`).join('');
+        document.getElementById('student-class').innerHTML = '<option value="">請選擇班級</option>' + opts;
+    }
+
+    // 通用的「勾選後跳出補充說明欄」機制，經濟弱勢與高關懷選項共用
+    function optionDetailHtml(o, kind) {
+        const d = o.detail;
+        if (!d) return '';
+        if (d.type === 'text') {
+            return `
+            <div id="${kind}-detail-${o.code}" class="hidden mt-1.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <input type="text" id="${kind}-input-${o.code}" maxlength="${d.maxLength || 100}" placeholder="${esc(d.placeholder || '')}" class="w-full rounded-lg border-amber-300 border p-2 bg-white focus:ring-2 focus:ring-amber-500 outline-none text-slate-800 text-xs">
+            </div>`;
+        }
+        if (d.type === 'radio') {
+            const opts = d.options.map(op => `
+                <label class="flex items-center space-x-1 text-xs text-slate-700 cursor-pointer"><input type="radio" name="${kind}-radio-${o.code}" value="${op.value}" class="text-brand-600 focus:ring-brand-500"><span>${esc(op.text)}</span></label>`).join('');
+            return `
+            <div id="${kind}-detail-${o.code}" class="hidden mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <span class="text-[11px] font-semibold text-amber-900">${esc(d.label || '')}</span>
+                ${opts}
+            </div>`;
+        }
+        return '';
+    }
+
+    function toggleOptionDetail(el, kind) {
+        const box = document.getElementById(`${kind}-detail-${el.value}`);
+        if (!box) return;
+        if (el.checked) {
+            box.classList.remove('hidden');
+        } else {
+            box.classList.add('hidden');
+            box.querySelectorAll('input').forEach(i => { if (i.type === 'radio') i.checked = false; else i.value = ''; });
+        }
+    }
+
+    function resetAllOptionDetails() {
+        document.querySelectorAll('[id^="care-detail-"], [id^="economic-detail-"]').forEach(box => {
+            box.classList.add('hidden');
+            box.querySelectorAll('input').forEach(i => { if (i.type === 'radio') i.checked = false; else i.value = ''; });
+        });
+    }
+
+    // 依選項清單的 detail 設定，收集勾選項目對應的補充說明，並回傳缺漏的第一個項目
+    function collectOptionDetails(list, kind, checkedCodes) {
+        const values = {};
+        let missing = null;
+        list.forEach(o => {
+            const d = o.detail;
+            if (!d) return;
+            const checked = checkedCodes.includes(o.code);
+            let val = '';
+            if (checked) {
+                if (d.type === 'text') val = document.getElementById(`${kind}-input-${o.code}`)?.value.trim() || '';
+                else if (d.type === 'radio') val = document.querySelector(`input[name="${kind}-radio-${o.code}"]:checked`)?.value || '';
+            }
+            values[d.field] = val;
+            if (checked && !val && !missing) missing = o;
+        });
+        return { values, missing };
+    }
+
+    function renderFormOptions() {
+        const render = (list, name, kind) => list.map(o => `
+            <div>
+                <label class="checkbox-card border border-slate-200 rounded-xl p-3 flex items-start space-x-3 cursor-pointer hover:border-brand-300 transition">
+                    <input type="checkbox" name="${name}" value="${o.code}" onchange="exclusiveNone(this)${o.detail ? `; toggleOptionDetail(this, '${kind}')` : ''}" class="mt-0.5 text-brand-600 focus:ring-brand-500 rounded">
+                    <span class="text-xs sm:text-sm font-medium text-slate-700 leading-snug">${esc(o.text)}</span>
+                </label>
+                ${optionDetailHtml(o, kind)}
+            </div>`).join('');
+        document.getElementById('economic-options-container').innerHTML = render(ECONOMIC_OPTIONS, 'economic', 'economic');
+        document.getElementById('care-options-container').innerHTML = render(CARE_OPTIONS, 'care', 'care');
+    }
+
+    // 「無上述狀況」與其他選項互斥
+    function exclusiveNone(el) {
+        const group = document.querySelectorAll(`input[name="${el.name}"]`);
+        if (!el.checked) return;
+        if (el.value === 'none') group.forEach(c => { if (c !== el) c.checked = false; });
+        else group.forEach(c => { if (c.value === 'none') c.checked = false; });
+    }
+
+    function togglePlateInput() {
+        const selected = document.querySelector('input[name="commute"]:checked')?.value;
+        const box = document.getElementById('plate-number-box');
+        const input = document.getElementById('license-plate');
+        if (selected === 'scooter') {
+            box.classList.remove('hidden');
+            input.setAttribute('required', 'true');
+        } else {
+            box.classList.add('hidden');
+            input.removeAttribute('required');
+            input.value = '';
+        }
+    }
+
+    function toggleOffCampusInputs() {
+        const selected = document.querySelector('input[name="offCampusLiving"]:checked')?.value;
+        const box = document.getElementById('off-campus-box');
+        const textIds = ['off-campus-address', 'off-campus-phone', 'landlord-name', 'landlord-phone'];
+        const radioGroups = ['largeFacility', 'shareWithLandlord'];
+        if (selected === 'yes') {
+            box.classList.remove('hidden');
+            textIds.forEach(id => document.getElementById(id).setAttribute('required', 'true'));
+            radioGroups.forEach(name =>
+                document.querySelectorAll(`input[name="${name}"]`).forEach(r => r.setAttribute('required', 'true')));
+        } else {
+            box.classList.add('hidden');
+            textIds.forEach(id => {
+                const el = document.getElementById(id);
+                el.removeAttribute('required');
+                el.value = '';
+            });
+            radioGroups.forEach(name =>
+                document.querySelectorAll(`input[name="${name}"]`).forEach(r => { r.removeAttribute('required'); r.checked = false; }));
+        }
+    }
+
+    function setTabStyles(active) {
+        const base = 'px-3 sm:px-4 py-1.5 rounded-md font-medium transition-all ';
+        ['student', 'teacher', 'admin'].forEach(r => {
+            document.getElementById(`tab-${r}-btn`).className = base +
+                (r === active ? 'shadow-sm bg-white text-brand-600' : 'text-slate-600 hover:text-slate-900');
+        });
+    }
+
+    function showView(role) {
+        ['student', 'teacher', 'admin'].forEach(r =>
+            document.getElementById(`view-${r}`).classList.toggle('hidden', r !== role));
+        setTabStyles(role);
+    }
+
+    function switchRole(role) {
+        if (role !== 'student' && session.role !== role) {
+            openLogin(role);
+            return;
+        }
+        showView(role);
+        if (role !== 'student') refreshData();
+    }
+
+    function setLoading(on) {
+        document.getElementById('loading-bar').classList.toggle('hidden', !on);
+    }
+
+    // =====================================================================
+    // 登入 / 登出
+    // =====================================================================
+    function openLogin(role) {
+        pendingRole = role;
+        document.getElementById('login-title').innerHTML =
+            `<i class="fa-solid fa-lock text-brand-600 mr-2"></i>${role === 'admin' ? '組長 / 主任登入' : '導師登入'}`;
+        document.getElementById('login-email-box').classList.toggle('hidden', role !== 'teacher');
+        document.getElementById('login-forgot-box').classList.toggle('hidden', role !== 'teacher');
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-error').classList.add('hidden');
+        document.getElementById('login-modal').classList.remove('hidden');
+        setTimeout(() => document.getElementById(role === 'teacher' ? 'login-email' : 'login-password').focus(), 50);
+    }
+    function closeLogin() {
+        document.getElementById('login-modal').classList.add('hidden');
+    }
+
+    async function submitLogin(e) {
+        e.preventDefault();
+        const role = pendingRole;
+        const identifier = role === 'teacher' ? document.getElementById('login-email').value.trim() : '';
+        const pw = document.getElementById('login-password').value;
+        const btn = document.getElementById('login-btn');
+        const errEl = document.getElementById('login-error');
+        btn.disabled = true;
+        btn.textContent = '登入中...';
+        errEl.classList.add('hidden');
+        try {
+            const r = await api.login(role, identifier, pw);
+            session = { role, token: r.token, cls: r.cls || '' };
+            saveSession();
+            closeLogin();
+            showView(role);
+            await refreshData();
+        } catch (err) {
+            if (err.code === 'NO_PASSWORD_SET') {
+                closeLogin();
+                openResetModal(identifier);
+                showNotification('尚未設定密碼', '請以驗證碼設定您的登入密碼。', 'info');
+            } else {
+                errEl.textContent = err.message;
+                errEl.classList.remove('hidden');
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '登入';
+            document.getElementById('login-password').value = '';
+        }
+    }
+
+    // =====================================================================
+    // 導師密碼設定 / 重設
+    // =====================================================================
+    function openResetModal(prefillEmail = '') {
+        document.getElementById('reset-email').value = prefillEmail || document.getElementById('login-email').value.trim() || '';
+        document.getElementById('reset-step1-error').classList.add('hidden');
+        document.getElementById('reset-step2-error').classList.add('hidden');
+        document.getElementById('reset-step1-form').classList.remove('hidden');
+        document.getElementById('reset-step2-form').classList.add('hidden');
+        document.getElementById('reset-modal').classList.remove('hidden');
+        setTimeout(() => document.getElementById('reset-email').focus(), 50);
+    }
+    function closeResetModal() {
+        document.getElementById('reset-modal').classList.add('hidden');
+        document.getElementById('reset-code').value = '';
+        document.getElementById('reset-new-password').value = '';
+        document.getElementById('reset-new-password2').value = '';
+    }
+    function backToResetStep1() {
+        document.getElementById('reset-step1-form').classList.remove('hidden');
+        document.getElementById('reset-step2-form').classList.add('hidden');
+    }
+
+    async function submitResetRequest(e) {
+        e.preventDefault();
+        const email = document.getElementById('reset-email').value.trim();
+        const btn = document.getElementById('reset-step1-btn');
+        const errEl = document.getElementById('reset-step1-error');
+        errEl.classList.add('hidden');
+        btn.disabled = true;
+        btn.textContent = '寄送中...';
+        try {
+            await api.requestPasswordReset(email);
+            document.getElementById('reset-email-display').textContent = email;
+            document.getElementById('reset-step1-form').classList.add('hidden');
+            document.getElementById('reset-step2-form').classList.remove('hidden');
+            setTimeout(() => document.getElementById('reset-code').focus(), 50);
+            showNotification('驗證碼已寄出', '請至信箱收取 6 位數驗證碼（若信箱存在於名冊中）。', 'success');
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '寄送驗證碼';
+        }
+    }
+
+    async function submitResetConfirm(e) {
+        e.preventDefault();
+        const email = document.getElementById('reset-email').value.trim();
+        const code = document.getElementById('reset-code').value.trim();
+        const pw1 = document.getElementById('reset-new-password').value;
+        const pw2 = document.getElementById('reset-new-password2').value;
+        const btn = document.getElementById('reset-step2-btn');
+        const errEl = document.getElementById('reset-step2-error');
+        errEl.classList.add('hidden');
+        if (pw1 !== pw2) {
+            errEl.textContent = '兩次輸入的新密碼不一致。';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (pw1.length < 8) {
+            errEl.textContent = '密碼長度至少需要 8 碼。';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = '設定中...';
+        try {
+            await api.resetPassword(email, code, pw1);
+            closeResetModal();
+            showNotification('密碼設定成功', '請使用新密碼登入。', 'success');
+            openLogin('teacher');
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-password').focus();
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.classList.remove('hidden');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '設定密碼並登入';
+        }
+    }
+
+    function logout(notify = true) {
+        clearSession();
+        data = { roster: [], surveys: [] };     // 登出時清掉畫面上的個資
+        document.getElementById('teacher-roster-tbody').innerHTML = '';
+        document.getElementById('admin-table-tbody').innerHTML = '';
+        document.getElementById('admin-class-summary-grid').innerHTML = '';
+        showView('student');
+        if (notify) showNotification('已登出', '已清除本次登入與畫面上的資料。', 'info');
+    }
+
+    function handleError(err) {
+        if (err.code === 'AUTH') {
+            const role = session.role;
+            logout(false);
+            showNotification('登入已逾時', '請重新登入。', 'warning');
+            if (role) openLogin(role);
+            return;
+        }
+        showNotification('發生錯誤', err.message || '請稍後再試。', 'error');
+    }
+
+    async function refreshData() {
+        if (!session.role) return;
+        setLoading(true);
+        try {
+            data = session.role === 'teacher' ? await api.loadTeacher() : await api.loadAdmin();
+            renderCurrent();
+        } catch (err) {
+            handleError(err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function renderCurrent() {
+        if (session.role === 'teacher') renderTeacherView();
+        else if (session.role === 'admin') { renderAdminGrid(); applyAdminFilters(); renderCategoryBreakdown(); }
+    }
+
+    // =====================================================================
+    // 學生填寫
+    // =====================================================================
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+
+        const studentClass = normClass(document.getElementById('student-class').value);
+        const seat = normSeat(document.getElementById('student-seat').value);
+        const name = document.getElementById('student-name').value.trim();
+        const commute = document.querySelector('input[name="commute"]:checked')?.value || '';
+        const plate = document.getElementById('license-plate').value.trim().toUpperCase();
+        const notes = document.getElementById('additional-notes').value.trim();
+        const economic = Array.from(document.querySelectorAll('input[name="economic"]:checked')).map(cb => cb.value);
+        const care = Array.from(document.querySelectorAll('input[name="care"]:checked')).map(cb => cb.value);
+        const careDetails = collectOptionDetails(CARE_OPTIONS, 'care', care);
+        const economicDetails = collectOptionDetails(ECONOMIC_OPTIONS, 'economic', economic);
+        const offCampusLiving = document.querySelector('input[name="offCampusLiving"]:checked')?.value || '';
+        const offCampusAddress = document.getElementById('off-campus-address').value.trim();
+        const offCampusPhone = document.getElementById('off-campus-phone').value.trim();
+        const landlordName = document.getElementById('landlord-name').value.trim();
+        const landlordPhone = document.getElementById('landlord-phone').value.trim();
+        const largeFacility = document.querySelector('input[name="largeFacility"]:checked')?.value || '';
+        const shareWithLandlord = document.querySelector('input[name="shareWithLandlord"]:checked')?.value || '';
+
+        if (!CLASS_RE.test(studentClass) || !seat || !name || !commute || !offCampusLiving) {
+            showNotification('資料未完整', '請完整填寫星號 (*) 必填項目！', 'warning');
+            return;
+        }
+        if (commute === 'scooter' && !plate) {
+            showNotification('請填寫車牌', '騎乘機車/電動車者需登記車牌號碼。', 'warning');
+            return;
+        }
+        if (offCampusLiving === 'yes' && (!offCampusAddress || !offCampusPhone || !landlordName || !landlordPhone || !largeFacility || !shareWithLandlord)) {
+            showNotification('校外賃居資料未完整', '請完整填寫賃居地址、電話、房東資訊與相關問題。', 'warning');
+            return;
+        }
+        if (careDetails.missing) {
+            showNotification('資料未完整', `請完整填寫「${careDetails.missing.text}」的補充說明。`, 'warning');
+            return;
+        }
+        if (economicDetails.missing) {
+            showNotification('資料未完整', `請完整填寫「${economicDetails.missing.text}」的補充說明。`, 'warning');
+            return;
+        }
+
+        const record = {
+            studentClass, seat, name, commute, plate,
+            economic: economic.length ? economic : ['none'],
+            care: care.length ? care : ['none'],
+            ...careDetails.values,
+            ...economicDetails.values,
+            notes,
+            offCampusLiving,
+            offCampusAddress: offCampusLiving === 'yes' ? offCampusAddress : '',
+            offCampusPhone: offCampusLiving === 'yes' ? offCampusPhone : '',
+            landlordName: offCampusLiving === 'yes' ? landlordName : '',
+            landlordPhone: offCampusLiving === 'yes' ? landlordPhone : '',
+            largeFacility: offCampusLiving === 'yes' ? largeFacility : '',
+            shareWithLandlord: offCampusLiving === 'yes' ? shareWithLandlord : ''
+        };
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        setLoading(true);
+        try {
+            const res = await api.submit(record);
+            showNotification(
+                res.updated ? '已更新填答' : '送出成功！',
+                `${studentClass} 班 ${seat} 號 ${name} 的資料已${res.updated ? '更新' : '儲存'}。`,
+                'success'
+            );
+            document.getElementById('survey-form').reset();
+            togglePlateInput();
+            toggleOffCampusInputs();
+            resetAllOptionDetails();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            showNotification('送出失敗', err.message || '請稍後再試。', 'error');
+        } finally {
+            btn.disabled = false;
+            setLoading(false);
+        }
+    }
+
+    // =====================================================================
+    // 導師專區
+    // =====================================================================
+    function setTeacherFilter(filter) {
+        teacherCurrentFilter = filter;
+        const styles = {
+            all: 'bg-white text-slate-800 shadow-sm',
+            submitted: 'bg-white text-emerald-700 shadow-sm',
+            unsubmitted: 'bg-white text-rose-700 shadow-sm'
+        };
+        const idMap = { all: 't-filter-all', submitted: 't-filter-submitted', unsubmitted: 't-filter-unsubmitted' };
+        Object.keys(idMap).forEach(k => {
+            document.getElementById(idMap[k]).className = 'px-3 py-1.5 rounded-lg font-bold ' +
+                (k === filter ? styles[k] : 'text-slate-600 hover:text-slate-900');
+        });
+        renderTeacherView();
+    }
+
+    function renderTeacherView() {
+        if (!session.cls) return;
+        const v = buildClassView(session.cls);
+        const unsub = v.noRoster ? 0 : v.total - v.submitted;
+        const percent = !v.noRoster && v.total > 0 ? Math.round(v.submitted / v.total * 100) : 0;
+
+        document.getElementById('teacher-role-badge').textContent = `目前帶班：${session.cls} 班`;
+        document.getElementById('t-no-roster-note').classList.toggle('hidden', !v.noRoster);
+        document.getElementById('t-progress-text').textContent =
+            v.noRoster ? '尚未匯入名冊' : `${v.submitted} / ${v.total} 人 (${percent}%)`;
+        document.getElementById('t-progress-bar').style.width = `${percent}%`;
+        document.getElementById('t-stat-completed').textContent = `${v.submitted} 人`;
+        document.getElementById('t-stat-unsubmitted').textContent = v.noRoster ? '-' : `${unsub} 人`;
+
+        const submittedRows = v.rows.filter(r => r.isSubmitted);
+        document.getElementById('t-stat-econ').textContent = `${submittedRows.filter(hasEconNeed).length} 人`;
+        document.getElementById('t-stat-scooter').textContent = `${submittedRows.filter(r => r.commute === 'scooter').length} 人`;
+        document.getElementById('t-count-all').textContent = v.total;
+        document.getElementById('t-count-sub').textContent = v.submitted;
+        document.getElementById('t-count-unsub').textContent = unsub;
+
+        let list = v.rows;
+        if (teacherCurrentFilter === 'submitted') list = v.rows.filter(r => r.isSubmitted);
+        if (teacherCurrentFilter === 'unsubmitted') list = v.rows.filter(r => !r.isSubmitted);
+
+        const tbody = document.getElementById('teacher-roster-tbody');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">目前無符合此條件之學生資料。</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(r => `
+            <tr class="hover:bg-slate-50 transition ${!r.isSubmitted ? 'bg-rose-50/30' : ''}">
+                <td class="py-3 px-4 font-bold text-slate-800">${esc(r.seat)}</td>
+                <td class="py-3 px-4 font-semibold text-slate-900">${esc(r.name)}</td>
+                <td class="py-3 px-4">
+                    ${r.isSubmitted
+                        ? `<span class="inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md"><i class="fa-solid fa-check mr-1"></i>已填寫</span>`
+                        : `<span class="inline-flex items-center text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md"><i class="fa-solid fa-clock mr-1"></i>未填寫</span>`}
+                </td>
+                <td class="py-3 px-4">
+                    ${r.isSubmitted ? `
+                        <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.commute === 'scooter' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${esc(commuteLabel(r.commute))}</span>
+                        ${r.plate ? `<span class="block text-[11px] font-mono text-indigo-600 font-bold mt-0.5"><i class="fa-solid fa-id-card mr-1"></i>${esc(r.plate)}</span>` : ''}
+                    ` : '-'}
+                </td>
+                <td class="py-3 px-4 text-xs">
+                    ${r.isSubmitted ? (r.offCampusLiving === 'yes' ? `
+                        <span class="inline-flex items-center text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-md"><i class="fa-solid fa-house-chimney mr-1"></i>賃居校外</span>
+                        <div class="mt-1 text-[11px] text-slate-600 space-y-0.5">
+                            <div>地址：${esc(r.offCampusAddress)}</div>
+                            <div>學生電話：${esc(r.offCampusPhone)}</div>
+                            <div>房東：${esc(r.landlordName)}（${esc(r.landlordPhone)}）</div>
+                            <div>10床以上：${ynLabel(r.largeFacility)}　與房東共租：${ynLabel(r.shareWithLandlord)}</div>
+                        </div>
+                    ` : '<span class="text-slate-400">未賃居</span>') : '-'}
+                </td>
+                <td class="py-3 px-4">
+                    ${r.isSubmitted
+                        ? `<ul class="list-disc list-inside text-xs text-slate-700 space-y-0.5">${r.economic.map(c => `<li>${esc(econLabelWithDetail(r, c))}</li>`).join('')}</ul>`
+                        : '-'}
+                </td>
+                <td class="py-3 px-4">
+                    ${r.isSubmitted
+                        ? `<ul class="list-disc list-inside text-xs text-slate-700 space-y-0.5">${r.care.map(c => `<li>${esc(careLabelWithDetail(r, c))}</li>`).join('')}</ul>`
+                        : '-'}
+                </td>
+                <td class="py-3 px-4 text-xs text-slate-500">${esc(r.notes) || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function copyReminderText() {
+        const v = buildClassView(session.cls);
+        if (v.noRoster) {
+            showNotification('尚未匯入名冊', '無法產生未填名單，請先請生輔組匯入名冊。', 'warning');
+            return;
+        }
+        const missing = v.rows.filter(r => !r.isSubmitted);
+        if (missing.length === 0) {
+            showNotification('太棒了！', `${v.cls} 班全班同學均已完成問卷填寫！`, 'success');
+            return;
+        }
+        const names = missing.map(s => `${s.seat}號 ${s.name}`).join('、');
+        const text = `【${v.cls}班 學生生活與車輛需求問卷催繳提醒】\n各位同學們好：目前本班尚有 ${missing.length} 位同學尚未完成填寫：\n\n尚未填寫名單：\n${names}\n\n請以上同學儘速至線上系統完成填報，謝謝配合！`;
+
+        const done = () => showNotification('複製成功！', `已複製 ${v.cls} 班未填寫提醒文字，可直接貼到 LINE 或群組。`, 'info');
+        const fallback = () => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); }
+            catch (e) { showNotification('複製失敗', '請手動選取文字複製。', 'error'); }
+            document.body.removeChild(ta);
+        };
+        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback);
+        else fallback();
+    }
+
+    function exportClassCSV() {
+        const v = buildClassView(session.cls);
+        let csv = '\uFEFF班級,座號,姓名,填報狀態,通學方式,車牌號碼,經濟弱勢類型,高關懷指標,校外賃居,賃居地址,學生電話(賃居),房東姓名,房東電話,10床以上大型租賃場所,與房東共租,備註說明\n';
+        v.rows.forEach(r => {
+            const cells = r.isSubmitted
+                ? [r.studentClass, r.seat, r.name, '已填寫', commuteLabel(r.commute), r.plate,
+                   r.economic.map(c => econLabelWithDetail(r, c)).join(';'), r.care.map(c => careLabelWithDetail(r, c)).join(';'),
+                   ynLabel(r.offCampusLiving), r.offCampusAddress, r.offCampusPhone, r.landlordName, r.landlordPhone,
+                   r.offCampusLiving === 'yes' ? ynLabel(r.largeFacility) : '', r.offCampusLiving === 'yes' ? ynLabel(r.shareWithLandlord) : '',
+                   r.notes]
+                : [r.studentClass, r.seat, r.name, '未填寫', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-'];
+            csv += cells.map(csvCell).join(',') + '\n';
+        });
+        downloadCSVBlob(csv, `${v.cls}班_學生問卷填寫狀況與催繳名冊.csv`);
+    }
+
+    // =====================================================================
+    // 組長 / 主任後台
+    // =====================================================================
+    const gradeOf = cls => cls.charAt(0);
+
+    // 依年級（高一/高二/高三）統計經濟弱勢／高關懷各類別人數，排除「無上述狀況」
+    function renderCategoryBreakdown() {
+        const grades = ['1', '2', '3'];
+        const buildRows = (list, key) => list
+            .filter(o => o.code !== 'none')
+            .map(o => {
+                const counts = grades.map(g => data.surveys.filter(r => gradeOf(r.studentClass) === g && r[key].includes(o.code)).length);
+                const total = counts.reduce((a, b) => a + b, 0);
+                return { text: o.text, counts, total };
+            });
+        const renderTbody = rows => rows.length
+            ? rows.map(row => `
+                <tr class="border-b border-slate-100">
+                    <td class="py-2 px-3 text-slate-700">${esc(row.text)}</td>
+                    <td class="py-2 px-3 text-center">${row.counts[0]}</td>
+                    <td class="py-2 px-3 text-center">${row.counts[1]}</td>
+                    <td class="py-2 px-3 text-center">${row.counts[2]}</td>
+                    <td class="py-2 px-3 text-center font-bold text-brand-700">${row.total}</td>
+                </tr>`).join('')
+            : `<tr><td colspan="5" class="py-4 text-center text-slate-400">目前尚無資料</td></tr>`;
+        document.getElementById('econ-breakdown-tbody').innerHTML = renderTbody(buildRows(ECONOMIC_OPTIONS, 'economic'));
+        document.getElementById('care-breakdown-tbody').innerHTML = renderTbody(buildRows(CARE_OPTIONS, 'care'));
+    }
+
+    function renderAdminGrid() {
+        const html = allClassCodes().map(cls => {
+            const v = buildClassView(cls);
+            if (v.noRoster) {
+                return `
+                    <div class="border rounded-xl p-2.5 text-center bg-slate-50 text-slate-500 border-slate-200">
+                        <div class="text-xs font-extrabold">${cls} 班</div>
+                        <div class="text-sm font-black mt-1">已填 ${v.submitted} 人</div>
+                        <div class="text-[10px] font-medium opacity-80">未匯入名冊</div>
+                    </div>`;
+            }
+            const percent = v.total > 0 ? Math.round(v.submitted / v.total * 100) : 0;
+            let color = 'bg-rose-50 text-rose-700 border-rose-200';
+            if (percent >= 80) color = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            else if (percent >= 40) color = 'bg-amber-50 text-amber-700 border-amber-200';
+            return `
+                <div class="border rounded-xl p-2.5 text-center transition hover:shadow-md ${color}">
+                    <div class="text-xs font-extrabold">${cls} 班</div>
+                    <div class="text-sm font-black mt-1">${v.submitted} / ${v.total} 人</div>
+                    <div class="text-[10px] font-medium opacity-80">${percent}% 完成</div>
+                </div>`;
+        }).join('');
+        document.getElementById('admin-class-summary-grid').innerHTML = html;
+    }
+
+    function applyAdminFilters() {
+        if (session.role !== 'admin') return;
+        const grade = document.getElementById('filter-grade').value;
+        const commute = document.getElementById('filter-commute').value;
+        const category = document.getElementById('filter-category').value;
+        const search = document.getElementById('filter-search').value.toLowerCase().trim();
+
+        let list = [...data.surveys].sort((a, b) => a.studentClass.localeCompare(b.studentClass) || bySeat(a, b));
+        if (grade) list = list.filter(r => r.studentClass.startsWith(grade));
+        if (commute) list = list.filter(r => r.commute === commute);
+        if (category === '__care__') list = list.filter(hasCareNeed);
+        else if (category === '__offcampus__') list = list.filter(r => r.offCampusLiving === 'yes');
+        else if (category) list = list.filter(r => r.economic.includes(category));
+        if (search) {
+            list = list.filter(r =>
+                r.name.toLowerCase().includes(search) ||
+                r.studentClass.includes(search) ||
+                r.seat.includes(search) ||
+                (r.plate || '').toLowerCase().includes(search));
+        }
+
+        document.getElementById('adm-stat-total').textContent = data.surveys.length;
+        document.getElementById('adm-stat-bikes').textContent = data.surveys.filter(r => r.commute === 'scooter').length;
+        document.getElementById('adm-stat-offcampus').textContent = data.surveys.filter(r => r.offCampusLiving === 'yes').length;
+        document.getElementById('adm-stat-roster-count').textContent = data.roster.length > 0 ? data.roster.length : '尚未匯入';
+
+        const tbody = document.getElementById('admin-table-tbody');
+        if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">查無符合條件之學生紀錄。</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = list.map(r => `
+            <tr class="hover:bg-slate-50 transition">
+                <td class="py-3 px-4 font-bold text-slate-900">${esc(r.studentClass)} 班</td>
+                <td class="py-3 px-4 font-medium text-slate-700">${esc(r.seat)}</td>
+                <td class="py-3 px-4 font-semibold text-slate-900">${esc(r.name)}</td>
+                <td class="py-3 px-4">
+                    <span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${r.commute === 'scooter' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${esc(commuteLabel(r.commute))}</span>
+                    ${r.plate ? `<span class="block text-[11px] font-mono text-indigo-600 font-bold mt-0.5">${esc(r.plate)}</span>` : ''}
+                </td>
+                <td class="py-3 px-4 text-xs">
+                    ${r.offCampusLiving === 'yes' ? `
+                        <span class="inline-flex items-center text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-md"><i class="fa-solid fa-house-chimney mr-1"></i>賃居校外</span>
+                        <div class="mt-1 text-[11px] text-slate-600 space-y-0.5">
+                            <div>地址：${esc(r.offCampusAddress)}</div>
+                            <div>學生電話：${esc(r.offCampusPhone)}</div>
+                            <div>房東：${esc(r.landlordName)}（${esc(r.landlordPhone)}）</div>
+                            <div>10床以上：${ynLabel(r.largeFacility)}　與房東共租：${ynLabel(r.shareWithLandlord)}</div>
+                        </div>
+                    ` : '<span class="text-slate-400">未賃居</span>'}
+                </td>
+                <td class="py-3 px-4 text-xs">${r.economic.map(c => `<span class="block text-slate-700">• ${esc(econLabelWithDetail(r, c))}</span>`).join('')}</td>
+                <td class="py-3 px-4 text-xs">${r.care.map(c => `<span class="block ${c !== 'none' ? 'text-rose-600 font-medium' : 'text-slate-400'}">• ${esc(careLabelWithDetail(r, c))}</span>`).join('')}</td>
+                <td class="py-3 px-4 text-xs text-slate-500">${esc(r.notes) || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function exportAllCSV() {
+        let csv = '\uFEFF班級,座號,姓名,通學方式,車牌號碼,經濟弱勢類型,高關懷指標,校外賃居,賃居地址,學生電話(賃居),房東姓名,房東電話,10床以上大型租賃場所,與房東共租,備註說明\n';
+        data.surveys.forEach(r => {
+            csv += [r.studentClass, r.seat, r.name, commuteLabel(r.commute), r.plate,
+                    r.economic.map(c => econLabelWithDetail(r, c)).join(';'), r.care.map(c => careLabelWithDetail(r, c)).join(';'),
+                    ynLabel(r.offCampusLiving), r.offCampusAddress, r.offCampusPhone, r.landlordName, r.landlordPhone,
+                    r.offCampusLiving === 'yes' ? ynLabel(r.largeFacility) : '', r.offCampusLiving === 'yes' ? ynLabel(r.shareWithLandlord) : '',
+                    r.notes]
+                .map(csvCell).join(',') + '\n';
+        });
+        downloadCSVBlob(csv, '全校學生特殊需求與車輛調查總表.csv');
+    }
+
+    // ---- 名冊匯入 ----
+    function openImportRosterModal() { document.getElementById('import-modal').classList.remove('hidden'); }
+    function closeImportRosterModal() { document.getElementById('import-modal').classList.add('hidden'); }
+
+    async function processRosterCSV() {
+        const file = document.getElementById('roster-file-input').files[0];
+        if (!file) {
+            showNotification('請選擇檔案', '請選擇要上傳的名冊 CSV 檔案！', 'warning');
+            return;
+        }
+        const btn = document.getElementById('import-btn');
+        btn.disabled = true;
+        try {
+            const text = decodeBuffer(await file.arrayBuffer()).replace(/^\uFEFF/, '');
+            const table = parseCSV(text);
+            if (table.length < 2) throw new Error('CSV 檔案內容過短或格式不正確！');
+
+            const header = table[0].map(s => s.trim());
+            const ci = header.indexOf('班級'), si = header.indexOf('座號'), ni = header.indexOf('姓名');
+            if (ci === -1 || si === -1 || ni === -1) throw new Error('CSV 標頭必須包含：班級,座號,姓名');
+
+            const seen = new Set();
+            const rows = [];
+            let skipped = 0;
+            for (let i = 1; i < table.length; i++) {
+                const cls = normClass(table[i][ci]);
+                const seat = normSeat(table[i][si]);
+                const name = String(table[i][ni] ?? '').trim();
+                const key = `${cls}-${seat}`;
+                if (!CLASS_RE.test(cls) || !/^\d{1,3}$/.test(seat) || !name || name.length > 30 || seen.has(key)) {
+                    skipped++;
+                    continue;
+                }
+                seen.add(key);
+                rows.push({ studentClass: cls, seat, name });
+            }
+            if (rows.length === 0) throw new Error('未能讀取到有效的學生名冊資料（班級需為 101～312）。');
+            if (!confirm(`即將以 ${rows.length} 筆資料取代現有名冊${skipped ? `（另有 ${skipped} 筆無效或重複資料已略過）` : ''}，確定嗎？`)) return;
+
+            setLoading(true);
+            await api.importRoster(rows);
+            showNotification('名冊匯入成功！', `成功匯入 ${rows.length} 筆名冊${skipped ? `，略過 ${skipped} 筆無效或重複資料` : ''}。`, 'success');
+            document.getElementById('roster-file-input').value = '';
+            closeImportRosterModal();
+            await refreshData();
+        } catch (err) {
+            if (err.code === 'AUTH') handleError(err);
+            else showNotification('匯入失敗', err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            setLoading(false);
+        }
+    }
+
+    async function clearRoster() {
+        if (!confirm('確定要清除全部名冊嗎？（不會刪除學生已填的問卷）')) return;
+        setLoading(true);
+        try {
+            await api.clearRoster();
+            showNotification('已清除名冊', '名冊已清空。', 'info');
+            closeImportRosterModal();
+            await refreshData();
+        } catch (err) {
+            handleError(err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // ---- 報表 ----
+    function generateReport(type) {
+        const titleEl = document.getElementById('modal-report-title');
+        const areaEl = document.getElementById('printable-area');
+
+        let reportTitle = '';
+        let records = [];
+        if (type === 'scooter') {
+            reportTitle = '【學務處生輔組】騎乘機車/電動車學生車牌與停車證核發清冊';
+            records = data.surveys.filter(r => r.commute === 'scooter');
+        } else if (type === 'unsubmitted') {
+            reportTitle = '【學務處生輔組】全校各班尚未填寫問卷學生催繳清冊';
+        } else if (type === 'economic') {
+            reportTitle = '【學務處生輔組】全校經濟弱勢學生扶助申請名冊';
+            records = data.surveys.filter(hasEconNeed);
+        } else if (type === 'care') {
+            reportTitle = '【輔導室】全校特殊身分與高關懷學生關懷輔導名冊';
+            records = data.surveys.filter(hasCareNeed);
+        } else if (type === 'offcampus') {
+            reportTitle = '【學務處生輔組】校外賃居（租屋）學生清冊';
+            records = data.surveys.filter(r => r.offCampusLiving === 'yes');
+        }
+        records = [...records].sort((a, b) => a.studentClass.localeCompare(b.studentClass) || bySeat(a, b));
+
+        titleEl.textContent = reportTitle;
+        const nowStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+        let html = `
+            <div class="border-b-2 border-slate-900 pb-4 mb-4">
+                <h2 class="text-xl font-bold text-center text-slate-900">${esc(reportTitle)}</h2>
+                <div class="flex justify-between text-xs text-slate-500 mt-2">
+                    <span>製表日期：${esc(nowStr)}</span>
+                    <span>承辦單位：生輔組 / 輔導室</span>
+                </div>
+            </div>`;
+
+        if (type === 'unsubmitted') {
+            html += `
+                <table class="w-full text-left text-xs border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-800 border-b border-slate-300">
+                            <th class="border border-slate-300 p-2 text-center">班級</th>
+                            <th class="border border-slate-300 p-2 text-center">已填寫 / 總人數</th>
+                            <th class="border border-slate-300 p-2 text-center">填寫完成率</th>
+                            <th class="border border-slate-300 p-2">尚未填寫學生座號與姓名 (待導師催繳)</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            allClassCodes().forEach(cls => {
+                const v = buildClassView(cls);
+                if (v.noRoster) {
+                    html += `
+                        <tr class="border-b border-slate-200">
+                            <td class="border border-slate-300 p-2 text-center font-bold">${cls} 班</td>
+                            <td class="border border-slate-300 p-2 text-center">${v.submitted} / -</td>
+                            <td class="border border-slate-300 p-2 text-center text-slate-400">-</td>
+                            <td class="border border-slate-300 p-2 text-slate-400">尚未匯入名冊，無法比對</td>
+                        </tr>`;
+                    return;
+                }
+                const missing = v.rows.filter(r => !r.isSubmitted);
+                const percent = v.total > 0 ? Math.round(v.submitted / v.total * 100) : 0;
+                html += `
+                    <tr class="border-b border-slate-200">
+                        <td class="border border-slate-300 p-2 text-center font-bold">${cls} 班</td>
+                        <td class="border border-slate-300 p-2 text-center">${v.submitted} / ${v.total}</td>
+                        <td class="border border-slate-300 p-2 text-center font-bold ${percent === 100 ? 'text-emerald-600' : 'text-rose-600'}">${percent}%</td>
+                        <td class="border border-slate-300 p-2 text-slate-700">
+                            ${missing.length === 0
+                                ? '<span class="text-emerald-600 font-bold">全班皆已完成填寫</span>'
+                                : missing.map(s => `${esc(s.seat)}號 ${esc(s.name)}`).join('、')}
+                        </td>
+                    </tr>`;
+            });
+            html += `</tbody></table>`;
+        } else if (type === 'offcampus') {
+            html += `
+                <table class="w-full text-left text-xs border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-800 border-b border-slate-300">
+                            <th class="border border-slate-300 p-2 text-center">序號</th>
+                            <th class="border border-slate-300 p-2">班級</th>
+                            <th class="border border-slate-300 p-2">座號</th>
+                            <th class="border border-slate-300 p-2">姓名</th>
+                            <th class="border border-slate-300 p-2">賃居地址</th>
+                            <th class="border border-slate-300 p-2">學生電話</th>
+                            <th class="border border-slate-300 p-2">房東姓名</th>
+                            <th class="border border-slate-300 p-2">房東電話</th>
+                            <th class="border border-slate-300 p-2 text-center">10床以上</th>
+                            <th class="border border-slate-300 p-2 text-center">與房東共租</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            if (records.length === 0) {
+                html += `<tr><td colspan="10" class="text-center p-6 text-slate-400">尚無符合此項之學生資料。</td></tr>`;
+            } else {
+                records.forEach((r, idx) => {
+                    html += `
+                        <tr class="border-b border-slate-200">
+                            <td class="border border-slate-300 p-2 text-center">${idx + 1}</td>
+                            <td class="border border-slate-300 p-2 font-bold">${esc(r.studentClass)} 班</td>
+                            <td class="border border-slate-300 p-2">${esc(r.seat)}</td>
+                            <td class="border border-slate-300 p-2 font-semibold">${esc(r.name)}</td>
+                            <td class="border border-slate-300 p-2">${esc(r.offCampusAddress)}</td>
+                            <td class="border border-slate-300 p-2">${esc(r.offCampusPhone)}</td>
+                            <td class="border border-slate-300 p-2">${esc(r.landlordName)}</td>
+                            <td class="border border-slate-300 p-2">${esc(r.landlordPhone)}</td>
+                            <td class="border border-slate-300 p-2 text-center">${ynLabel(r.largeFacility)}</td>
+                            <td class="border border-slate-300 p-2 text-center">${ynLabel(r.shareWithLandlord)}</td>
+                        </tr>`;
+                });
+            }
+            html += `</tbody></table>`;
+        } else {
+            html += `
+                <table class="w-full text-left text-xs border-collapse border border-slate-300">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-800 border-b border-slate-300">
+                            <th class="border border-slate-300 p-2 text-center">序號</th>
+                            <th class="border border-slate-300 p-2">班級</th>
+                            <th class="border border-slate-300 p-2">座號</th>
+                            <th class="border border-slate-300 p-2">姓名</th>
+                            <th class="border border-slate-300 p-2">${type === 'scooter' ? '登記車牌號碼' : '申請項目 / 身分類別'}</th>
+                            <th class="border border-slate-300 p-2">學生說明/備註</th>
+                            <th class="border border-slate-300 p-2 text-center">審核核可 (簽章)</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            if (records.length === 0) {
+                html += `<tr><td colspan="7" class="text-center p-6 text-slate-400">尚無符合此項之學生資料。</td></tr>`;
+            } else {
+                records.forEach((r, idx) => {
+                    let detail = '';
+                    if (type === 'scooter') detail = `<strong class="font-mono text-indigo-700">${esc(r.plate) || '未填寫'}</strong>`;
+                    else if (type === 'economic') detail = esc(r.economic.filter(c => c !== 'none').map(c => econLabelWithDetail(r, c)).join('；'));
+                    else if (type === 'care') detail = esc(r.care.filter(c => c !== 'none').map(c => careLabelWithDetail(r, c)).join('；'));
+                    html += `
+                        <tr class="border-b border-slate-200">
+                            <td class="border border-slate-300 p-2 text-center">${idx + 1}</td>
+                            <td class="border border-slate-300 p-2 font-bold">${esc(r.studentClass)} 班</td>
+                            <td class="border border-slate-300 p-2">${esc(r.seat)}</td>
+                            <td class="border border-slate-300 p-2 font-semibold">${esc(r.name)}</td>
+                            <td class="border border-slate-300 p-2">${detail}</td>
+                            <td class="border border-slate-300 p-2 text-slate-600">${esc(r.notes) || '-'}</td>
+                            <td class="border border-slate-300 p-2 text-center text-slate-300">〔 簽章 〕</td>
+                        </tr>`;
+                });
+            }
+            html += `</tbody></table>`;
+        }
+
+        html += `
+            <div class="mt-8 flex justify-between text-xs text-slate-600 pt-4 border-t border-slate-200">
+                <div>導師確認：________________</div>
+                <div>生輔組長：________________</div>
+                <div>學務主任：________________</div>
+            </div>`;
+
+        areaEl.innerHTML = html;
+        document.getElementById('report-modal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+        document.getElementById('report-modal').classList.add('hidden');
+    }
+    </script>
+</body>
+</html>
